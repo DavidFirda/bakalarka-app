@@ -40,9 +40,8 @@ def serve_index():
 
 @app.route("/config.js")
 def serve_config():
-    access_code = os.getenv("APP_ACCESS_CODE")
-    js_code = f'const ACCESS_CODE = "{access_code}";'
-    return Response(js_code, mimetype="application/javascript")
+    access_code = os.getenv("APP_ACCESS_CODE", "")
+    return Response(f"const ACCESS_CODE = '{access_code}';", mimetype="application/javascript")
 
 @app.route("/login")
 def serve_login():

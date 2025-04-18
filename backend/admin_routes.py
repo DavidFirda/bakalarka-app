@@ -8,6 +8,109 @@ import pandas as pd
 admin_bp = Blueprint("admin", __name__)
 
 @admin_bp.route("/students", methods=["GET"])
+def export_students_full():
+    token = request.args.get("token")
+    if token != "AdaptiveLearningBC":
+        abort(401)
+
+    students = Student.query.all()
+    rows = []
+
+    def compute_stats(answers):
+        total = len(answers)
+        correct = sum(1 for a in answers if a.is_correct)
+        rate = round((correct / total * 100), 1) if total > 0 else 0
+        return total, correct, rate
+
+    def get_weak_categories(answers):
+        stats = {}
+        for a in answers:
+            if not a.category:
+                continue
+            if a.category not in stats:
+                stats[a.category] = {"total": 0, "correct": 0}
+            stats[a.category]["total"] += 1
+            if a.is_correct:
+                stats[a.category]["correct"] += 1
+
+        weak = []
+        for cat, val in stats.items():
+            if val["total"] > 0:
+                rate = val["correct"] / val["total"]
+                if rate < 0.6:
+                    weak.append(cat)
+        return ", ".join(weak)
+
+    for s in students:
+        pred_answers = StudentAnswer.query.filter_by(student_id=s.id, test_type="predtest").all()
+        pred_total, pred_correct, pred_rate = compute_stats(pred_answers)
+        weak_categories = get_weak_categories(pred_answers)
+
+        summaries = TestSummary.query.filter_by(student_id=s.id, test_type="main").all()
+        sessions = {}
+        
+        for summary in summaries:
+            session_id = summary.test_session
+            if session_id not in sessions:
+                sessions[session_id] = {
+                    "student_id": s.id,
+                    "name": s.name,
+                    "login": s.login,
+                    "algorithm": "",
+                    "pred_total_answers": pred_total,
+                    "pred_correct_answers": pred_correct,
+                    "pred_accuracy": f"{pred_rate:.1f}%" if pred_total > 0 else "N/A",
+                    "predtest_weak_categories": weak_categories,  # ✅ nový stĺpec
+                    "test_session": session_id,
+                    "main_total": 0,
+                    "main_correct": 0
+                }
+
+            sessions[session_id]["main_total"] += summary.total_answers
+            sessions[session_id]["main_correct"] += summary.correct_answers
+            sessions[session_id][f"{summary.category}_accuracy"] = (
+                f"{summary.accuracy * 100:.1f}%" if summary.total_answers > 0 else "N/A"
+            )
+
+        for session in sessions.values():
+            total = session["main_total"]
+            correct = session["main_correct"]
+            session["main_accuracy"] = f"{round(correct / total * 100, 1)}%" if total > 0 else "N/A"
+
+            if s.id % 3 == 1:
+                session["algorithm"] = "Random"
+            elif s.id % 3 == 2:
+                session["algorithm"] = "Q-Learning"
+            else:
+                session["algorithm"] = "POMDP"
+
+        rows.extend(sessions.values())
+
+    if not rows:
+        return jsonify({"error": "Žiadne dáta na export."}), 404
+
+    df = pd.DataFrame(rows)
+
+    def parse_accuracy(val):
+        try:
+            return float(str(val).replace("%", ""))
+        except:
+            return 0.0
+
+    df["overall_accuracy_value"] = df["main_accuracy"].apply(parse_accuracy)
+
+    excel_stream = BytesIO()
+    df.to_excel(excel_stream, index=False, sheet_name="All_Students")
+    excel_stream.seek(0)
+
+    return send_file(
+        excel_stream,
+        download_name="all_students_results.xlsx",
+        as_attachment=True,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@admin_bp.route("/students/summary", methods=["GET"])
 def get_all_students():
     token = request.args.get("token")
     if token != "AdaptiveLearningBC":
