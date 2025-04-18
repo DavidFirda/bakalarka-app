@@ -55,9 +55,13 @@ def serve_register():
 def serve_static_files(filename):
     return send_from_directory(FRONTEND_FOLDER, filename)
 
+@app.route("/health")
+def health():
+    return "OK", 200
+
 @app.errorhandler(404)
 def not_found(e):
     return send_from_directory(FRONTEND_FOLDER, "index.html")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)

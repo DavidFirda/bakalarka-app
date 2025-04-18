@@ -9,7 +9,7 @@ def capture_output(source_code):
     source_code = "\n".join([
         line for line in source_code.splitlines()
         if not re.match(r"^\s*(import random|from random import)", line)
-    ])
+    ]) 
 
     buffer = io.StringIO()
     try:
