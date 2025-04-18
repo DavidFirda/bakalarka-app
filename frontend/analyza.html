@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analýza výsledkov</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .center-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 40px;
+    }
+
+    .result-block {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .text-info {
+      font-size: 1.1em;
+    }
+
+    .chart-wrapper {
+      width: 150px;
+      height: 150px;
+    }
+
+    #analysis-content p {
+      text-align: left;
+    }
+
+    .btn-container {
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    .metrics {
+      display: flex;
+      justify-content: center;
+      margin-top: 30px;
+    }
+
+    .metric-content {
+      text-align: left;
+      margin: 10px auto;
+      max-width: 400px;
+      width: 100%;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 style="text-align: center;">Analýza výsledkov testu</h1>
+
+    <div id="analysis-content">
+      <p>🔄 Načítavam tvoje štatistiky...</p>
+    </div>
+
+    <div class="btn-container">
+      <a href="/feedback.html" class="btn">Na dotazník</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="analyza.js"></script>
+</body>
+</html>
