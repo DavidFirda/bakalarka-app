@@ -25,7 +25,7 @@ window.onload = async () => {
         return;
     }
 
-    const res = await fetch("/admin/students/summary?token=AdaptiveLearningBC");
+    const res = await fetch("/admin/students/summary?token="+ token);
     const data = await res.json();
     const student = data.find(s => s.id === parseInt(studentId));
 

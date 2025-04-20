@@ -11,4 +11,4 @@ flask_session
 python-dotenv
 requests
 bs4
-gunicorn
+

@@ -141,7 +141,6 @@ def start_main_test():
         "test_session": test_session 
     })
 
-
 @api_bp.route("/test/answer", methods=["POST"])
 def evaluate_answer():
     data = request.get_json()
@@ -171,10 +170,55 @@ def evaluate_answer():
     expected_output, expected_error = capture_output(question.output)
 
     if expected_error:
+        if int(student_id) % 3 == 2 and question.category and test_type == "main":
+            cache_key = (student_id, test_session)
+            if cache_key not in selector_cache:
+                selector_cache[cache_key] = QLearningQuestionSelector(
+                    student_id=student_id,
+                    categories=["Sorting", "Syntax", "Data Structures", "Scientific Computing"],
+                    test_session=test_session
+                )
+            selector = selector_cache[cache_key]
+            selector.update_after_answer(
+                question_id=question.id,
+                category=question.category,
+                correct=False
+            )
+        elif int(student_id) % 3 == 0 and question.category and test_type == "main":
+            cache_key = (student_id, test_session)
+            if cache_key not in selector_cache:
+                selector_cache[cache_key] = POMDPQuestionSelector(
+                    student_id=student_id,
+                    categories=["Sorting", "Syntax", "Data Structures", "Scientific Computing"],
+                    test_session=test_session,
+                    excluded_ids=[]
+                )
+            selector = selector_cache[cache_key]
+            selector.update_after_answer(
+                question_id=question.id,
+                category=question.category,
+                correct=False
+            )
+
+        update_summary(student_id, test_type, test_session, category, is_correct=False)
+
+        student_answer = StudentAnswer(
+            student_id=student_id,
+            question_id=question_id,
+            answer_code=code,
+            category=category,
+            is_correct=True,
+            test_type=test_type,
+            test_session=test_session
+        )
+        db.session.add(student_answer)
+        db.session.commit()
+
         return jsonify({
             "correct": False,
-            "message": f"❌ Interná chyba v hodnotení otázky: {expected_error}"
-        }), 500
+            "message": f"❌ Interná chyba v hodnotení otázky: {expected_error}",
+            "student_output": student_output
+        })
 
     correct = compare_outputs(student_output, expected_output)
 
@@ -228,8 +272,6 @@ def evaluate_answer():
         })
 
     if attempts < 1:
-        #session["attempts"][str(question_id)] = attempts + 1
-        #session.modified = True
         student_attempts[attempt_key] += 1
         return jsonify({
             "correct": False,

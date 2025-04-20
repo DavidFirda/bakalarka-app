@@ -22,6 +22,7 @@ app = Flask(
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "fallback-key")
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['ADMIN_TOKEN'] = os.getenv("ADMIN_TOKEN")
 
 CORS(app)
 with app.app_context():
@@ -41,7 +42,12 @@ def serve_index():
 @app.route("/config.js")
 def serve_config():
     access_code = os.getenv("APP_ACCESS_CODE", "")
-    return Response(f"const ACCESS_CODE = '{access_code}';", mimetype="application/javascript")
+    admin_token = os.getenv("ADMIN_TOKEN", "")
+    js = f"""
+        const ACCESS_CODE = '{access_code}';
+        const token = '{admin_token}';
+    """
+    return Response(js.strip(), mimetype="application/javascript")
 
 @app.route("/login")
 def serve_login():

@@ -230,3 +230,9 @@ textarea#student_code {
     -webkit-appearance: none;
     margin: 0;
   }
+
+  .feedback-chart {
+    width: 100%;
+    max-height: 200px;
+    margin-bottom: 10px;
+  }

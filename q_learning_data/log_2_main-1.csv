@@ -1,1 +1,14 @@
 ID_log,Question_ID,Category,Answer,Old Q-Value,New Q-Value
+64,64,Data Structures,Correct,0,-1.0
+362,362,Scientific Computing,Correct,0,-1.0
+1025,1025,Syntax,Incorrect,0,0.5
+1791,1791,Syntax,Incorrect,0.5,1.495
+143,143,Syntax,Incorrect,1.495,2.4800500000000003
+814,814,Scientific Computing,Correct,-1.0,-1.6767954999999999
+110,110,Syntax,Incorrect,2.4800500000000003,3.4552495000000003
+110,110,Syntax,Incorrect,3.4552495000000003,4.420697005
+619,619,Scientific Computing,Incorrect,-1.6767954999999999,-0.61125321955
+26,26,Syntax,Incorrect,4.420697005,5.376490034950001
+26,26,Syntax,Incorrect,5.376490034950001,6.322725134600501
+26,26,Syntax,Incorrect,6.322725134600501,7.259497883254496
+26,26,Syntax,Incorrect,7.259497883254496,8.18690290442195

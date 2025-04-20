@@ -4,13 +4,15 @@ from models import Student, StudentAnswer, TestSummary, StudentFeedback
 from collections import Counter
 from io import BytesIO
 import pandas as pd
+from flask import current_app
 
 admin_bp = Blueprint("admin", __name__)
 
 @admin_bp.route("/students", methods=["GET"])
 def export_students_full():
     token = request.args.get("token")
-    if token != "AdaptiveLearningBC":
+    #if token != "AdaptiveLearningBC":
+    if token != current_app.config['ADMIN_TOKEN']:
         abort(401)
 
     students = Student.query.all()
@@ -60,7 +62,7 @@ def export_students_full():
                     "pred_total_answers": pred_total,
                     "pred_correct_answers": pred_correct,
                     "pred_accuracy": f"{pred_rate:.1f}%" if pred_total > 0 else "N/A",
-                    "predtest_weak_categories": weak_categories,  # ✅ nový stĺpec
+                    "predtest_weak_categories": weak_categories, 
                     "test_session": session_id,
                     "main_total": 0,
                     "main_correct": 0
@@ -113,7 +115,7 @@ def export_students_full():
 @admin_bp.route("/students/summary", methods=["GET"])
 def get_all_students():
     token = request.args.get("token")
-    if token != "AdaptiveLearningBC":
+    if token != current_app.config['ADMIN_TOKEN']:
         abort(401)
 
     students = Student.query.all()
@@ -196,10 +198,111 @@ def get_all_students():
         mimetype='application/json'
     )
 
+@admin_bp.route("/algorithms/stats", methods=["GET"])
+def algorithm_stats():
+    token = request.args.get("token")
+    if token != current_app.config['ADMIN_TOKEN']:
+        abort(401)
+
+    students = Student.query.all()
+
+    algo_data = {
+        "Random": [],
+        "Q-Learning": [],
+        "POMDP": []
+    }
+
+    category_aggregate = {
+        "Random": {},
+        "Q-Learning": {},
+        "POMDP": {}
+    }
+
+    def get_algorithm(student_id):
+        if student_id % 3 == 1:
+            return "Random"
+        elif student_id % 3 == 2:
+            return "Q-Learning"
+        else:
+            return "POMDP"
+
+    def compute_accuracy(answers):
+        total = len(answers)
+        correct = sum(1 for a in answers if a.is_correct)
+        return (correct / total) * 100 if total > 0 else None
+
+    for student in students:
+        algorithm = get_algorithm(student.id)
+
+        # Slabé kategórie z predtestu
+        pred_answers = StudentAnswer.query.filter_by(student_id=student.id, test_type="predtest").all()
+        weak_cats = []
+        cat_stats = {}
+        for ans in pred_answers:
+            cat = ans.category
+            if not cat:
+                continue
+            if cat not in cat_stats:
+                cat_stats[cat] = {"total": 0, "correct": 0}
+            cat_stats[cat]["total"] += 1
+            if ans.is_correct:
+                cat_stats[cat]["correct"] += 1
+        for cat, val in cat_stats.items():
+            rate = val["correct"] / val["total"]
+            if rate < 0.6:
+                weak_cats.append(cat)
+
+        # Hlavný test
+        main_answers = StudentAnswer.query.filter_by(student_id=student.id, test_type="main").all()
+        overall_acc = compute_accuracy(main_answers)
+        weak_cat_answers = [a for a in main_answers if a.category in weak_cats]
+        weak_acc = compute_accuracy(weak_cat_answers)
+
+        algo_data[algorithm].append({
+            "student_id": student.id,
+            "overall_accuracy": overall_acc,
+            "weak_accuracy": weak_acc,
+            "weak_categories": weak_cats
+        })
+
+        for cat in weak_cats:
+            if cat not in category_aggregate[algorithm]:
+                category_aggregate[algorithm][cat] = {"total": 0, "weak_count": 0}
+            category_aggregate[algorithm][cat]["weak_count"] += 1
+
+        # Hlavný test - počítaj počet otázok
+        for ans in main_answers:
+            cat = ans.category
+            if not cat:
+                continue
+            if cat not in category_aggregate[algorithm]:
+                category_aggregate[algorithm][cat] = {"total": 0, "weak_count": 0}
+            category_aggregate[algorithm][cat]["total"] += 1
+
+
+    # Finálne štatistiky
+    def avg(values):
+        clean = [v for v in values if v is not None]
+        return round(sum(clean) / len(clean), 2) if clean else 0
+
+    summary = {}
+    for algo, students in algo_data.items():
+        summary[algo] = {
+            "count": len(students),
+            "avg_overall_accuracy": avg([s["overall_accuracy"] for s in students]),
+            "avg_weak_accuracy": avg([s["weak_accuracy"] for s in students]),
+            "category_stats": category_aggregate[algo]
+        }
+
+    return jsonify({
+        "summary": summary,
+        "detailed": algo_data
+    })
+
 @admin_bp.route("/feedback", methods=["GET"])
 def export_feedback():
     token = request.args.get("token")
-    if token != "AdaptiveLearningBC":
+    if token != current_app.config['ADMIN_TOKEN']:
         abort(401)
         
     feedbacks = StudentFeedback.query.all()
@@ -238,7 +341,7 @@ def export_feedback():
 @admin_bp.route("/feedback/summary", methods=["GET"])
 def feedback_summary():
     token = request.args.get("token")
-    if token != "AdaptiveLearningBC":
+    if token != current_app.config['ADMIN_TOKEN']:
         abort(401)
 
     feedbacks = StudentFeedback.query.all()
@@ -249,6 +352,7 @@ def feedback_summary():
 
     fields_to_summarize = [
         "gender",
+        "age",
         "experience",
         "understand_questions",
         "easy_navigation",
@@ -264,7 +368,7 @@ def feedback_summary():
 
     summary = {}
     for field in fields_to_summarize:
-        counter = Counter(getattr(f, field) for f in feedbacks)
+        counter = Counter(str(getattr(f, field)) for f in feedbacks if getattr(f, field) is not None)
         summary[field] = {
             k: round(v / total * 100, 1) for k, v in counter.items()
         }
